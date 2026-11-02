@@ -77,6 +77,8 @@ Telangana, Karnataka, Maharashtra, Uttar Pradesh, and Delhi from 1960 through
 2026, use the separate **NMC selected states 1960-2026** workflow in the GitHub
 Actions tab. It runs each state sequentially in the order defined in
 `.github/workflows/nmc-selected-states.yml`.
+That workflow checkpoints the Drive files after every information year, so a
+GitHub Actions timeout normally loses at most the year currently in progress.
 
 ## 5. Verify the files
 

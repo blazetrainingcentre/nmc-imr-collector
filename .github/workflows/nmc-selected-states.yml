@@ -2,10 +2,13 @@ name: NMC selected states 1960-2026
 
 on:
   workflow_dispatch:
+  schedule:
+    # 00:00, 06:00, 12:00 and 18:00 IST (UTC is 5h30 behind IST).
+    - cron: "30 0,6,12,18 * * *"
 
 concurrency:
   group: nmc-selected-states
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   collect:
@@ -57,15 +60,17 @@ jobs:
             echo "============================================================"
             echo "Starting: ${state} | information years 1960-2026"
             echo "============================================================"
-            python scrape.py collect \
-              --council "${state}" \
-              --year-from 1960 \
-              --year-to 2026 \
-              --delay 3 \
-              --recover-capped
-            # Checkpoint after every state so a timeout or interruption does
-            # not lose the completed states.
-            python scripts/drive_sync.py push
+            for year in $(seq 1960 2026); do
+              python scrape.py collect \
+                --council "${state}" \
+                --year-from "${year}" \
+                --year-to "${year}" \
+                --delay 3 \
+                --recover-capped
+              # Checkpoint after every year so a timeout or interruption does
+              # not lose completed years.
+              python scripts/drive_sync.py push
+            done
           done
 
       - name: Upload collector state to Google Drive
