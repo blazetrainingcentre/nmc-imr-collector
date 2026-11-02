@@ -111,12 +111,18 @@ def files_to_sync():
 def main():
     parser = argparse.ArgumentParser(description="Sync NMC collector files with Google Drive")
     parser.add_argument("action", choices=("pull", "push"))
+    parser.add_argument("--only", nargs="+", metavar="FILE",
+                        help="sync only these filenames (matched against basename)")
     args = parser.parse_args()
     folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
     if not folder_id:
         raise SystemExit("GOOGLE_DRIVE_FOLDER_ID is not set")
     service = drive_service()
-    for relative in files_to_sync():
+    targets = files_to_sync()
+    if args.only:
+        allowed = set(args.only)
+        targets = [f for f in targets if f.name in allowed]
+    for relative in targets:
         (pull if args.action == "pull" else push)(service, folder_id, relative)
 
 

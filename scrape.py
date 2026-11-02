@@ -630,6 +630,8 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
     all_fields: list = []
     text = src.read_text(encoding="utf-8-sig")
     stripped = text.lstrip()
+    log.info("Loading %s (%d bytes, first char %r)", src.name, len(text),
+             stripped[:1] if stripped else "<empty>")
     document = None
     try:
         document = json.loads(text)
@@ -637,6 +639,7 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
         pass
 
     if document is not None:
+        log.info("Parsed %s as single JSON document (type=%s)", src.name, type(document).__name__)
         if isinstance(document, dict) and any(
                 key in document for key in ("registration_no", "name", "state_medical_council")):
             records = [(1, document)]
@@ -663,19 +666,29 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
             raise SystemExit(f"Invalid JSON array in {src}: {exc}") from exc
         records = list(enumerate(parsed, 1)) if isinstance(parsed, list) else []
     else:
+        lines = text.splitlines()
+        log.info("Parsing %s as JSONL (%d lines)", src.name, len(lines))
         records = []
-        for line_no, line in enumerate(text.splitlines(), 1):
+        for line_no, line in enumerate(lines, 1):
             if not line.strip():
                 continue
             try:
                 records.append((line_no, json.loads(line)))
-            except json.JSONDecodeError:
-                log.warning("Skipping unreadable record %d in %s", line_no, src.name)
+            except json.JSONDecodeError as exc:
+                log.warning("Skipping unreadable line %d in %s: %s", line_no, src.name, exc)
 
     for line_no, record in records:
         if not isinstance(record, dict):
-            log.warning("Skipping unreadable record %d in %s", line_no, src.name)
-            continue
+            # Double-serialised JSONL: each element is a JSON string containing a record.
+            if isinstance(record, str):
+                try:
+                    record = json.loads(record)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if not isinstance(record, dict):
+                log.warning("Skipping non-dict record %d in %s (type=%s, preview=%.120r)",
+                            line_no, src.name, type(record).__name__, record)
+                continue
         ident = json.dumps({k: v for k, v in record.items() if k != "_scraped_at"},
                            sort_keys=True, ensure_ascii=False)
         if ident in seen:

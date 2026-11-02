@@ -30,7 +30,8 @@ jobs:
         env:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: python scripts/drive_sync.py pull
+          GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
+        run: python scripts/drive_sync.py pull --only collect.jsonl state.json
 
       - name: Export combined workbook
         run: python scrape.py export-collect-combined --out data/collect/collect.xlsx
@@ -39,7 +40,8 @@ jobs:
         env:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: python scripts/drive_sync.py push
+          GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
+        run: python scripts/drive_sync.py push --only collect.xlsx
 
       - name: Upload Excel exports to GitHub Actions
         uses: actions/upload-artifact@v4
