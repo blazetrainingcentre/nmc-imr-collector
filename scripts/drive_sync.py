@@ -81,7 +81,15 @@ def pull(service, folder_id: str, relative: Path):
         done = False
         while not done:
             _, done = downloader.next_chunk()
-    print(f"downloaded: {relative}")
+    actual = target.stat().st_size
+    expected = int(found.get("size") or 0)
+    print(f"downloaded: {relative} ({actual} bytes)")
+    if expected and actual != expected:
+        print(f"WARNING: size mismatch — Drive reports {expected} bytes but downloaded {actual} bytes")
+    if relative.name.endswith(".jsonl") and actual < MIN_JSONL_BYTES:
+        raise SystemExit(
+            f"Downloaded {relative} is only {actual} bytes — likely corrupted or overwritten on Drive. "
+            f"Check Drive version history to restore the original file.")
 
 
 MIN_JSONL_BYTES = 1024
