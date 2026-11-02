@@ -641,7 +641,7 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
     if document is not None:
         log.info("Parsed %s as single JSON document (type=%s)", src.name, type(document).__name__)
         if isinstance(document, dict) and any(
-                key in document for key in ("registration_no", "name", "state_medical_council")):
+                key in document for key in ("registration_no", "state_medical_council")) and "kind" not in document:
             records = [(1, document)]
         elif isinstance(document, list):
             records = list(enumerate(document, 1))

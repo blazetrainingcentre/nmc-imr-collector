@@ -84,11 +84,20 @@ def pull(service, folder_id: str, relative: Path):
     print(f"downloaded: {relative}")
 
 
+MIN_JSONL_BYTES = 1024
+
+
 def push(service, folder_id: str, relative: Path):
     source = ROOT / relative
     if not source.is_file():
         print(f"skip missing: {relative}")
         return
+    if relative.name.endswith(".jsonl"):
+        size = source.stat().st_size
+        if size < MIN_JSONL_BYTES:
+            raise SystemExit(
+                f"Refusing to upload {relative}: file is only {size} bytes "
+                f"(minimum {MIN_JSONL_BYTES}). This may indicate data loss.")
     media = MediaFileUpload(str(source), mimetype=mimetypes.guess_type(source.name)[0] or "application/octet-stream",
                             resumable=True)
     found = find_file(service, folder_id, relative.name)
