@@ -33,12 +33,14 @@ jobs:
         env:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
         run: python scripts/drive_sync.py pull
 
       - name: Collect selected states in requested order
         env:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -60,23 +62,22 @@ jobs:
             echo "============================================================"
             echo "Starting: ${state} | information years 1960-2026"
             echo "============================================================"
-            for year in $(seq 1960 2026); do
-              python scrape.py collect \
-                --council "${state}" \
-                --year-from "${year}" \
-                --year-to "${year}" \
-                --delay 3 \
-                --recover-capped
-              # Checkpoint after every year so a timeout or interruption does
-              # not lose completed years.
-              python scripts/drive_sync.py push
-            done
+            python scrape.py collect \
+              --council "${state}" \
+              --year-from 1960 \
+              --year-to 2026 \
+              --delay 3 \
+              --recover-capped
+            # Checkpoint after every state so a timeout or interruption does
+            # not lose the completed states.
+            python scripts/drive_sync.py push
           done
 
       - name: Upload collector state to Google Drive
         env:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
         run: python scripts/drive_sync.py push
 
       - name: Upload run log as workflow artifact
