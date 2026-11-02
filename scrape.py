@@ -628,26 +628,39 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
     seen: set = set()
     by_council: dict[str, list] = {}
     all_fields: list = []
-    with src.open(encoding="utf-8") as fh:
-        for line_no, line in enumerate(fh, 1):
+    text = src.read_text(encoding="utf-8-sig")
+    stripped = text.lstrip()
+    if stripped.startswith("["):
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"Invalid JSON array in {src}: {exc}") from exc
+        records = list(enumerate(parsed, 1)) if isinstance(parsed, list) else []
+    else:
+        records = []
+        for line_no, line in enumerate(text.splitlines(), 1):
             if not line.strip():
                 continue
             try:
-                record = json.loads(line)
+                records.append((line_no, json.loads(line)))
             except json.JSONDecodeError:
-                log.warning("Skipping unreadable line %d in %s", line_no, src.name)
-                continue
-            ident = json.dumps({k: v for k, v in record.items() if k != "_scraped_at"},
-                               sort_keys=True, ensure_ascii=False)
-            if ident in seen:
-                continue
-            seen.add(ident)
-            flat = flatten(record)
-            council = str(flat.get("_council") or flat.get("state_medical_council") or "Unknown")
-            by_council.setdefault(council, []).append(flat)
-            for key in flat:
-                if key not in all_fields:
-                    all_fields.append(key)
+                log.warning("Skipping unreadable record %d in %s", line_no, src.name)
+
+    for line_no, record in records:
+        if not isinstance(record, dict):
+            log.warning("Skipping unreadable record %d in %s", line_no, src.name)
+            continue
+        ident = json.dumps({k: v for k, v in record.items() if k != "_scraped_at"},
+                           sort_keys=True, ensure_ascii=False)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        flat = flatten(record)
+        council = str(flat.get("_council") or flat.get("state_medical_council") or "Unknown")
+        by_council.setdefault(council, []).append(flat)
+        for key in flat:
+            if key not in all_fields:
+                all_fields.append(key)
     return by_council, all_fields
 
 
