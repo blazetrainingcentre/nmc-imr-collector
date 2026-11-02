@@ -77,6 +77,11 @@ Telangana, Karnataka, Maharashtra, Uttar Pradesh, and Delhi from 1960 through
 2026, use the separate **NMC selected states 1960-2026** workflow in the GitHub
 Actions tab. It runs each state sequentially in the order defined in
 `.github/workflows/nmc-selected-states.yml`.
+
+To export the collected data, use the **NMC export collected data** workflow.
+It restores `collect.jsonl` from Drive, creates one combined Excel workbook with
+separate sheets for each council, then uploads that workbook to both Google
+Drive and the GitHub Actions run artifacts.
 That workflow checkpoints the Drive files after every information year, so a
 GitHub Actions timeout normally loses at most the year currently in progress.
 

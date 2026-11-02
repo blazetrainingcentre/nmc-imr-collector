@@ -98,10 +98,7 @@ def push(service, folder_id: str, relative: Path):
 
 
 def files_to_sync():
-    files = list(DEFAULT_FILES)
-    files.extend(sorted((ROOT / "data/collect").glob("*.xlsx")))
-    files = [path.relative_to(ROOT) if path.is_absolute() else path for path in files]
-    return files
+    return [*DEFAULT_FILES, Path("data/collect/collect.xlsx")]
 
 
 def main():
