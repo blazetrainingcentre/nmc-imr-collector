@@ -1,0 +1,84 @@
+name: NMC selected states 1960-2026
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: nmc-selected-states
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Restore collector state from Google Drive
+        env:
+          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: python scripts/drive_sync.py pull
+
+      - name: Collect selected states in requested order
+        env:
+          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # These are API search fragments. The order here is intentional.
+          # "Kerala" covers the user's Trivandrum (Kerala) entry.
+          states=(
+            "Tamil Nadu"
+            "Kerala"
+            "Andhra Pradesh"
+            "Telangana"
+            "Karnataka"
+            "Maharashtra"
+            "Uttar Pradesh"
+            "Delhi"
+          )
+
+          for state in "${states[@]}"; do
+            echo "============================================================"
+            echo "Starting: ${state} | information years 1960-2026"
+            echo "============================================================"
+            python scrape.py collect \
+              --council "${state}" \
+              --year-from 1960 \
+              --year-to 2026 \
+              --delay 3 \
+              --recover-capped
+            # Checkpoint after every state so a timeout or interruption does
+            # not lose the completed states.
+            python scripts/drive_sync.py push
+          done
+
+      - name: Upload collector state to Google Drive
+        env:
+          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: python scripts/drive_sync.py push
+
+      - name: Upload run log as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nmc-selected-states-log
+          path: data/run.log
+          if-no-files-found: ignore
+          retention-days: 30

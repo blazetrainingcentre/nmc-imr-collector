@@ -72,6 +72,12 @@ available range and resume from the saved Drive state.
 The workflow is protected by a concurrency lock so two collector runs do not
 overwrite each other's progress.
 
+For the fixed ordered run of Tamil Nadu, Kerala/Trivandrum, Andhra Pradesh,
+Telangana, Karnataka, Maharashtra, Uttar Pradesh, and Delhi from 1960 through
+2026, use the separate **NMC selected states 1960-2026** workflow in the GitHub
+Actions tab. It runs each state sequentially in the order defined in
+`.github/workflows/nmc-selected-states.yml`.
+
 ## 5. Verify the files
 
 After a successful run, the Drive folder should contain:
