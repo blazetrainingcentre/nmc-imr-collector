@@ -1,0 +1,15 @@
+# Collected data must stay local (see README: NMC terms + personal data)
+data/
+*.jsonl
+*.csv
+*.xlsx
+*.log
+state.json
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+client_secret*.json
+drive_token.json

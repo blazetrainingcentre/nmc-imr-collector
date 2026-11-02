@@ -1,0 +1,11 @@
+# Optional but recommended on Windows: lets Python use the operating system's certificate
+# store (like your browser), which fixes "unable to get local issuer certificate".
+truststore>=0.9 ; python_version >= "3.10"
+
+# Excel export
+openpyxl>=3.1
+
+# Google Drive persistence for GitHub Actions
+google-api-python-client>=2.150
+google-auth>=2.35
+google-auth-oauthlib>=1.2
