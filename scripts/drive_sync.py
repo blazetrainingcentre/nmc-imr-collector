@@ -59,11 +59,13 @@ def find_file(service, folder_id: str, name: str):
                                    **options)
     files = request.execute().get("files", [])
     if len(files) > 1:
-        print(f"warning: found {len(files)} Drive files named {name}; selecting the largest/latest")
-    # A prior interrupted upload can leave a small stale duplicate. Prefer the
-    # largest copy, then the newest copy, so a complete JSONL wins over a
-    # truncated upload.
-    files.sort(key=lambda item: (int(item.get("size") or 0), item.get("modifiedTime") or ""), reverse=True)
+        for f in files:
+            print(f"  duplicate: {f['id']}  size={f.get('size','?')}  modified={f.get('modifiedTime','?')}")
+    # Prefer the most recently modified copy so a restored or re-uploaded
+    # file wins over a stale duplicate.
+    files.sort(key=lambda item: (item.get("modifiedTime") or "", int(item.get("size") or 0)), reverse=True)
+    if files:
+        print(f"selected: {files[0]['id']} (size={files[0].get('size','?')}, modified={files[0].get('modifiedTime','?')})")
     return files[0] if files else None
 
 
@@ -75,7 +77,7 @@ def pull(service, folder_id: str, relative: Path):
         return
     print(f"using Drive file {found['id']} ({found.get('size', '?')} bytes) for {relative}")
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = service.files().get(fileId=found["id"], alt="media", supportsAllDrives=True)
+    request = service.files().get_media(fileId=found["id"], supportsAllDrives=True)
     with target.open("wb") as handle:
         downloader = MediaIoBaseDownload(handle, request)
         done = False
@@ -86,10 +88,16 @@ def pull(service, folder_id: str, relative: Path):
     print(f"downloaded: {relative} ({actual} bytes)")
     if expected and actual != expected:
         print(f"WARNING: size mismatch — Drive reports {expected} bytes but downloaded {actual} bytes")
-    if relative.name.endswith(".jsonl") and actual < MIN_JSONL_BYTES:
-        raise SystemExit(
-            f"Downloaded {relative} is only {actual} bytes — likely corrupted or overwritten on Drive. "
-            f"Check Drive version history to restore the original file.")
+    if relative.name.endswith(".jsonl"):
+        head = target.read_bytes()[:64]
+        if head.startswith(b'{"kind":"drive#'):
+            raise SystemExit(
+                f"Downloaded {relative} contains Drive API metadata, not data. "
+                f"Delete the stale file from Drive and re-upload or restore from version history.")
+        if actual < MIN_JSONL_BYTES:
+            raise SystemExit(
+                f"Downloaded {relative} is only {actual} bytes — likely corrupted or overwritten on Drive. "
+                f"Check Drive version history to restore the original file.")
 
 
 MIN_JSONL_BYTES = 1024
