@@ -67,7 +67,8 @@ jobs:
               --year-from 1960 \
               --year-to 2026 \
               --delay 3 \
-              --recover-capped
+              --recover-capped \
+              --sync-every 1
             # Checkpoint after every state so a timeout or interruption does
             # not lose the completed states.
             python scripts/drive_sync.py push

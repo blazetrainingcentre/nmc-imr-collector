@@ -41,6 +41,7 @@ import logging
 import math
 import os
 import string
+import sys
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -152,6 +153,19 @@ class State:
         tmp.write_text(json.dumps({"done": self.done, "recovery": self.recovery,
                                    "recovery_versions": self.recovery_versions}, indent=1), encoding="utf-8")
         tmp.replace(self.path)
+
+
+def _drive_push():
+    """Run drive_sync.py push as a subprocess; errors are logged, not fatal."""
+    import subprocess
+    script = Path(__file__).resolve().parent / "scripts" / "drive_sync.py"
+    result = subprocess.run([sys.executable, str(script), "push"],
+                            capture_output=True, text=True)
+    if result.returncode == 0:
+        log.info("Drive sync checkpoint complete")
+    else:
+        log.warning("Drive sync failed (exit %d): %s", result.returncode,
+                    (result.stderr or result.stdout).strip()[:200])
 
 
 def append_records(records, path: Path) -> None:
@@ -610,6 +624,10 @@ def run_collect(args) -> None:
 
         log.info("[%d/%d] %s %s: %d rows (site total %d)", number, len(todo), name, year, len(records), total)
 
+        sync_every = getattr(args, "sync_every", 0)
+        if sync_every and number % sync_every == 0:
+            _drive_push()
+
     if capped_count:
         log.warning("%d capped searches this run; see `python scrape.py status`", capped_count)
 
@@ -1023,6 +1041,8 @@ def main(argv=None) -> None:
                    help="maximum new filtered searches per council/year per run (default 200)")
     p.add_argument("--recovery-depth", type=int, default=3,
                    help="maximum registration fragment length (default 3)")
+    p.add_argument("--sync-every", type=int, default=0, metavar="N",
+                   help="run drive_sync.py push after every N searches (0 = disabled)")
     add_delay(p)
     sub.add_parser("scrape", parents=[p],
                    help="collect the allow-listed fields into data/imr_records.jsonl").set_defaults(func=run_scrape)
