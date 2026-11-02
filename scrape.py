@@ -630,7 +630,33 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
     all_fields: list = []
     text = src.read_text(encoding="utf-8-sig")
     stripped = text.lstrip()
-    if stripped.startswith("["):
+    document = None
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    if document is not None:
+        if isinstance(document, dict) and any(
+                key in document for key in ("registration_no", "name", "state_medical_council")):
+            records = [(1, document)]
+        elif isinstance(document, list):
+            records = list(enumerate(document, 1))
+        elif isinstance(document, dict):
+            # Accept common wrappers and council-keyed exports without
+            # interpreting nested qualification objects as records.
+            records = []
+            for key in ("records", "data", "results", "items"):
+                value = document.get(key)
+                if isinstance(value, list):
+                    records.extend((index, record) for index, record in enumerate(value, 1))
+            if not records:
+                for value in document.values():
+                    if isinstance(value, list) and all(isinstance(item, dict) for item in value):
+                        records.extend((index, record) for index, record in enumerate(value, 1))
+        else:
+            records = []
+    elif stripped.startswith("["):
         try:
             parsed = json.loads(text)
         except json.JSONDecodeError as exc:
