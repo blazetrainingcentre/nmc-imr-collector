@@ -58,6 +58,12 @@ def find_file(service, folder_id: str, name: str):
     request = service.files().list(q=query, spaces="drive", fields="files(id,name,size,modifiedTime)",
                                    **options)
     files = request.execute().get("files", [])
+    if len(files) > 1:
+        print(f"warning: found {len(files)} Drive files named {name}; selecting the largest/latest")
+    # A prior interrupted upload can leave a small stale duplicate. Prefer the
+    # largest copy, then the newest copy, so a complete JSONL wins over a
+    # truncated upload.
+    files.sort(key=lambda item: (int(item.get("size") or 0), item.get("modifiedTime") or ""), reverse=True)
     return files[0] if files else None
 
 
@@ -67,6 +73,7 @@ def pull(service, folder_id: str, relative: Path):
     if not found:
         print(f"not found: {relative}")
         return
+    print(f"using Drive file {found['id']} ({found.get('size', '?')} bytes) for {relative}")
     target.parent.mkdir(parents=True, exist_ok=True)
     request = service.files().get(fileId=found["id"], alt="media", supportsAllDrives=True)
     with target.open("wb") as handle:
