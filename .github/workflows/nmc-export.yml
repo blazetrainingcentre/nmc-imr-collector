@@ -50,3 +50,4 @@ jobs:
           path: data/collect/collect.xlsx
           if-no-files-found: error
           retention-days: 30
+

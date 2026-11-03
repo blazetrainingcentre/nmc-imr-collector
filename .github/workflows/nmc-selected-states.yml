@@ -2,6 +2,8 @@ name: NMC selected states 1960-2026
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
 
 concurrency:
   group: nmc-selected-states
@@ -13,6 +15,7 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: read
+      actions: write
 
     steps:
       - name: Check out repository
@@ -85,3 +88,9 @@ jobs:
           path: data/run.log
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Trigger export
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run nmc-export.yml
