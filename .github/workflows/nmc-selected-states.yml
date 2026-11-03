@@ -2,9 +2,6 @@ name: NMC selected states 1960-2026
 
 on:
   workflow_dispatch:
-  schedule:
-    # 00:00, 06:00, 12:00 and 18:00 IST (UTC is 5h30 behind IST).
-    - cron: "30 0,6,12,18 * * *"
 
 concurrency:
   group: nmc-selected-states
@@ -45,11 +42,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # These are API search fragments. The order here is intentional.
-          # "Kerala" covers the user's Trivandrum (Kerala) entry.
+          # These are API search fragments (substring-matched against council names).
           states=(
             "Tamil Nadu"
-            "Kerala"
+            "Travancore Cochin"
             "Andhra Pradesh"
             "Telangana"
             "Karnataka"

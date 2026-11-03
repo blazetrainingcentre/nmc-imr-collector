@@ -15,8 +15,6 @@ on:
         description: "Optional information year end"
         required: false
         type: string
-  schedule:
-    - cron: "30 18 * * *"
 
 concurrency:
   group: nmc-collector
