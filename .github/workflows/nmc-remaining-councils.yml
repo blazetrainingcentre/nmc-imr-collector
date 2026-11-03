@@ -16,7 +16,6 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: read
-      actions: write
 
     steps:
       - name: Check out repository
@@ -35,7 +34,7 @@ jobs:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
-        run: python scripts/drive_sync.py pull
+        run: python scripts/drive_sync.py pull --only collect.jsonl state.json
 
       - name: Collect remaining councils
         env:
@@ -82,7 +81,7 @@ jobs:
               --delay 3 \
               --recover-capped \
               --sync-every 1
-            python scripts/drive_sync.py push
+            python scripts/drive_sync.py push --only collect.jsonl state.json
           done
 
       - name: Upload collector state to Google Drive
@@ -90,7 +89,7 @@ jobs:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
-        run: python scripts/drive_sync.py push
+        run: python scripts/drive_sync.py push --only collect.jsonl state.json
 
       - name: Upload run log as workflow artifact
         if: always()
@@ -100,15 +99,3 @@ jobs:
           path: data/run.log
           if-no-files-found: ignore
           retention-days: 30
-
-      - name: Check all councils and years are complete
-        id: completion
-        env:
-          REQUIRE_COMPLETE: "true"
-        run: python scripts/check_collection_complete.py
-
-      - name: Trigger final export
-        if: success() && steps.completion.outputs.ready == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run nmc-export.yml --ref "${{ github.event.repository.default_branch }}" -f require_complete=true

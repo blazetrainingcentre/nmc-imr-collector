@@ -159,7 +159,8 @@ def _drive_push():
     """Run drive_sync.py push as a subprocess; errors are logged, not fatal."""
     import subprocess
     script = Path(__file__).resolve().parent / "scripts" / "drive_sync.py"
-    result = subprocess.run([sys.executable, str(script), "push"],
+    result = subprocess.run([sys.executable, str(script), "push",
+                             "--only", "collect.jsonl", "state.json"],
                             capture_output=True, text=True)
     if result.returncode == 0:
         log.info("Drive sync checkpoint complete")
@@ -257,7 +258,9 @@ def recovery_identity(record: dict, *, full: bool = False) -> tuple:
     or universities. Council/year scope is supplied by the caller; scraping timestamps
     and private source fields never participate in this identity.
     """
-    value = record if full else keep_allowed(record)
+    metadata = {"_scraped_at", "_council_code", "_council", "_year"}
+    value = ({key: value for key, value in record.items() if key not in metadata}
+             if full else keep_allowed(record))
     return (json.dumps(value, sort_keys=True, ensure_ascii=False),)
 
 
@@ -295,14 +298,15 @@ def recover_capped(client, code, name, year, state, records_path, budget=200, ma
     previous = state.done.get(key, {})
     if previous.get("site_total", total) != total:
         raise ApiError("Site total changed since collection; use a fresh IMR_DATA_DIR for a new snapshot")
-    if state.recovery_versions.get(key) != RECOVERY_IDENTITY_VERSION:
+    identity_version = RECOVERY_IDENTITY_VERSION + 1 if full_records else RECOVERY_IDENTITY_VERSION
+    if state.recovery_versions.get(key) != identity_version:
         if state.recovery.get(key):
             log.warning("Updating recovery deduplication for %s %s: preserving distinct qualifications "
                         "and rechecking old fragment searches. Saved records are retained.", name, year)
         # Older checkpoints may have discarded distinct source entries. Revisit those
         # fragments once using the new identity; never remove the saved records.
         state.recovery[key] = {}
-        state.recovery_versions[key] = RECOVERY_IDENTITY_VERSION
+        state.recovery_versions[key] = identity_version
         state.save()
     completed = state.recovery.setdefault(key, {})
     alphabet = string.digits + string.ascii_lowercase
@@ -589,6 +593,8 @@ def run_collect(args) -> None:
                                getattr(args, "recovery_budget", 200),
                                getattr(args, "recovery_depth", 3),
                                record_fn=to_record_full, full_records=True)
+                if getattr(args, "sync_every", 0):
+                    _drive_push()
                 continue
             items, total, capped = fetch_query(client, code, year)
         except Blocked as exc:
@@ -615,6 +621,8 @@ def run_collect(args) -> None:
                 break
             except ApiError as exc:
                 log.warning("Recovery unfinished for %s %s: %s", name, year, exc)
+            if getattr(args, "sync_every", 0):
+                _drive_push()
             continue
 
         if capped:

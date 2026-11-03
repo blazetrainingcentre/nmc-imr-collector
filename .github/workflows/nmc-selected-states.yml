@@ -3,7 +3,8 @@ name: NMC selected states 1960-2026
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"
+    # 00:00, 06:00, 12:00, 18:00 IST.
+    - cron: "30 0,6,12,18 * * *"
 
 concurrency:
   group: nmc-selected-states
@@ -11,11 +12,13 @@ concurrency:
 
 jobs:
   collect:
+    concurrency:
+      group: nmc-drive-collector
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
       contents: read
-      actions: write
 
     steps:
       - name: Check out repository
@@ -34,7 +37,7 @@ jobs:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
-        run: python scripts/drive_sync.py pull
+        run: python scripts/drive_sync.py pull --only collect.jsonl state.json
 
       - name: Collect selected states in requested order
         env:
@@ -70,7 +73,7 @@ jobs:
               --sync-every 1
             # Checkpoint after every state so a timeout or interruption does
             # not lose the completed states.
-            python scripts/drive_sync.py push
+            python scripts/drive_sync.py push --only collect.jsonl state.json
           done
 
       - name: Upload collector state to Google Drive
@@ -78,7 +81,7 @@ jobs:
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
-        run: python scripts/drive_sync.py push
+        run: python scripts/drive_sync.py push --only collect.jsonl state.json
 
       - name: Upload run log as workflow artifact
         if: always()
@@ -88,9 +91,3 @@ jobs:
           path: data/run.log
           if-no-files-found: ignore
           retention-days: 30
-
-      - name: Trigger export
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run nmc-export.yml
