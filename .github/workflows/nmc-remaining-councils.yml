@@ -2,6 +2,9 @@ name: NMC remaining councils 1960-2026
 
 on:
   workflow_dispatch:
+  schedule:
+    # 00:00, 06:00, 12:00, 18:00 IST (cron is UTC).
+    - cron: "30 0,6,12,18 * * *"
 
 concurrency:
   group: nmc-remaining-councils
