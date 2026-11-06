@@ -729,6 +729,13 @@ def _load_collect_jsonl(src: Path) -> tuple[dict[str, list], list]:
     return by_council, all_fields
 
 
+def _xlsx_clean(value):
+    """Remove Excel-forbidden control characters from exported text only."""
+    if isinstance(value, str):
+        return value.translate(dict.fromkeys((*range(9), 11, 12, *range(14, 32))))
+    return value
+
+
 def _write_xlsx(rows: list, all_fields: list, dst: Path, sheet_name: str) -> None:
     """Write a single-sheet xlsx from a list of flat row dicts."""
     try:
@@ -739,7 +746,7 @@ def _write_xlsx(rows: list, all_fields: list, dst: Path, sheet_name: str) -> Non
         raise SystemExit("openpyxl is required: pip install openpyxl")
 
     sheet_fields = [f for f in all_fields if any(f in r for r in rows)]
-    safe_name = sheet_name[:31]
+    safe_name = _xlsx_clean(sheet_name)[:31]
     for ch in r'\/*?:[]]':
         safe_name = safe_name.replace(ch, " ")
     safe_name = safe_name.strip() or "Sheet"
@@ -753,7 +760,7 @@ def _write_xlsx(rows: list, all_fields: list, dst: Path, sheet_name: str) -> Non
     header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     for col, field in enumerate(sheet_fields, 1):
-        cell = ws.cell(row=1, column=col, value=field)
+        cell = ws.cell(row=1, column=col, value=_xlsx_clean(field))
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = header_align
@@ -765,6 +772,7 @@ def _write_xlsx(rows: list, all_fields: list, dst: Path, sheet_name: str) -> Non
             value = record.get(field, "")
             if isinstance(value, (list, dict)):
                 value = json.dumps(value, ensure_ascii=False)
+            value = _xlsx_clean(value)
             ws.cell(row=row_idx, column=col, value=value if value != "" else None)
 
     for col, field in enumerate(sheet_fields, 1):
@@ -804,7 +812,7 @@ def _write_xlsx_multi_sheet(by_council: dict[str, list], all_fields: list, dst: 
         rows = by_council[council]
         sheet_fields = [f for f in all_fields if any(f in r for r in rows)]
 
-        safe_name = council[:31]
+        safe_name = _xlsx_clean(council)[:31]
         for ch in r'\/*?:[]]':
             safe_name = safe_name.replace(ch, " ")
         safe_name = safe_name.strip() or "Unknown"
@@ -817,7 +825,7 @@ def _write_xlsx_multi_sheet(by_council: dict[str, list], all_fields: list, dst: 
         ws = wb.create_sheet(title=safe_name)
 
         for col, field in enumerate(sheet_fields, 1):
-            cell = ws.cell(row=1, column=col, value=field)
+            cell = ws.cell(row=1, column=col, value=_xlsx_clean(field))
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_align
@@ -829,6 +837,7 @@ def _write_xlsx_multi_sheet(by_council: dict[str, list], all_fields: list, dst: 
                 value = record.get(field, "")
                 if isinstance(value, (list, dict)):
                     value = json.dumps(value, ensure_ascii=False)
+                value = _xlsx_clean(value)
                 ws.cell(row=row_idx, column=col, value=value if value != "" else None)
 
         for col, field in enumerate(sheet_fields, 1):

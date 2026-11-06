@@ -29,6 +29,34 @@ def text(cell):
     return ''.join(cell.itertext())
 
 
+class CollectControlCharacterTests(unittest.TestCase):
+    def test_both_collect_writers_save_and_reopen_control_characters(self):
+        import openpyxl
+
+        dirty = ''.join(chr(n) for n in (*range(9), 11, 12, *range(14, 32)))
+        original = {"qualification": dirty + "M.B.B.S.",
+                    "notes": "தமிழ்\tline\nbreak\r", "count": 42}
+        with tempfile.TemporaryDirectory() as directory:
+            for multi in (False, True):
+                with self.subTest(multi=multi):
+                    dst = Path(directory) / f"export-{multi}.xlsx"
+                    fields = list(original)
+                    if multi:
+                        scrape._write_xlsx_multi_sheet({"Council": [original]}, fields, dst)
+                    else:
+                        scrape._write_xlsx([original], fields, dst, "Council")
+                    book = openpyxl.load_workbook(dst)
+                    try:
+                        self.assertEqual(book.active["A2"].value, "M.B.B.S.")
+                        # XML readers normalize literal carriage returns to newlines.
+                        self.assertEqual(book.active["B2"].value, original["notes"].replace("\r", "\n"))
+                        self.assertEqual(scrape._xlsx_clean(original["notes"]), original["notes"])
+                        self.assertEqual(book.active["C2"].value, 42)
+                    finally:
+                        book.close()
+        self.assertEqual(original["qualification"], dirty + "M.B.B.S.")
+
+
 class ExportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
